@@ -1,0 +1,45 @@
+0_0\cache.xaero
+
+Offsets with 64x64 image:
+310
+41310
+82298
+123292
+164286
+205274
+246268
+287256
+328250
+369238
+410232
+
+Heads (10 bytes before image):
+310      00 00 00 00 80 58 00 00 40 00
+41310    01 00 00 00 80 58 00 00 40 00
+82298    02 00 00 00 80 58 00 00 40 00
+123292   03 00 00 00 80 58 00 00 40 00
+164286   04 00 00 00 80 58 00 00 40 00
+205274   10 00 00 00 80 58 00 00 40 00
+246268   11 00 00 00 80 58 00 00 40 00
+287256   12 00 00 00 80 58 00 00 40 00
+328250   13 00 00 00 80 58 00 00 40 00
+369238   14 00 00 00 80 58 00 00 40 00
+410232   20 00 00 00 80 58 00 00 40 00
+         -- && && && && && && && && &&
+
+&&: Identical
+~~: More than one occurence (maybe an ID?)
+--: Unique
+
+Current assumption
+The first byte of the head is used to keep track of the index of the image segment. The rest are assumed to be constant to identify the start of the image data
+
+Tails (21 bytes after image):
+00 00 08 24 C1 1E 09 10 47 00 08 25 C1 32 09 70 4A 00 08 20 41
+00 00 08 1E 40 F2 07 90 3C 00 08 1F 41 0A 07 90 3C 00 08 1F 40
+00 00 08 26 C1 36 09 B0 4D 00 08 27 41 3A 09 D0 4D 00 08 2b C1
+00 00 08 3A 41 D2 0E 90 74 00 08 3A 41 DA 0F 10 76 00 08 35 41
+&& && && -- ~~ -- ~~ ~~ -- && && -- ~~ -- ~~ -- -- && && -- ~~
+
+
+Among the first 16,384 bytes following an image the two 8,192 byte halves appear two be largely identical. See fc_out.txt
