@@ -16,26 +16,26 @@ class FileRegionReader(private val file: File) : RegionReader {
         // Skip to first segment
         readUntilNextSegment(fc)
 
-        try {
-            while (true) {
-                val segmentFile = File.createTempFile("xwmv", ".segment")
-                val segmentBuffer = segmentFile.outputStream()
+        var done = false
+        while (!done) {
+            val segmentFile = File.createTempFile("xwmv", ".segment")
+            val segmentBuffer = segmentFile.outputStream()
 
-                // Read segment data
+            // Read segment data
+            try {
                 readUntilNextSegment(fc, segmentBuffer)
-
-                // Create segment
-                segmentBuffer.flush()
-                val fis = segmentFile.inputStream()
-                val segment = RegionSegment(fis.readAllBytes())
-                fis.close()
-                segments.add(segment)
+            } catch (_: EOFException) {
+                done = true
             }
-        } catch (_: EOFException) {
 
-        } finally {
-            fc.close()
+            // Create segment
+            segmentBuffer.flush()
+            val fis = segmentFile.inputStream()
+            val segment = RegionSegment(fis.readAllBytes())
+            fis.close()
+            segments.add(segment)
         }
+        fc.close()
 
         return segments
     }
