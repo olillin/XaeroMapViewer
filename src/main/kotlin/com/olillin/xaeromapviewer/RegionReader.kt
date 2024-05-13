@@ -3,9 +3,9 @@ package com.olillin.xaeromapviewer
 import java.awt.image.BufferedImage
 
 interface RegionReader {
-    /** Get all segments. */
-    fun getSegments(): List<RegionSegment>
+    /** The segments in the region. */
+    val segments: List<RegionSegment>
 
-    /** Get a compiled image of all segments. */
-    fun getFullImage(): BufferedImage
+    /** A compiled image of all segments. */
+    val fullImage: BufferedImage
 }

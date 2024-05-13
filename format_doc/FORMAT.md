@@ -96,11 +96,11 @@ Segments have three parts: [header](#header), [image](#image) and
 
 #### Header
 
-The header is 10 bytes long and starts with a byte which specifies the X and Y
-coordinate of the segment where the first 4 bits are the X coordinate and the
-last 4 are the Y. The coordinates are signed. Note that these are not block
-coordinates. The byte is followed by the following constant string of 9 bytes
-referred to as the `HEADER_IDENTIFIER`:
+The header is 10 bytes long. The first byte specifies the X and Y coordinate of
+the segment within the region where the first 4 bits are X and the last 4 are
+Y. The coordinates are unsigned. Note that these are not block coordinates. The
+byte is followed by the following constant string of 9 bytes referred to as the
+`HEADER_IDENTIFIER`:
 
 ```hex
 00 00 00 80 58 00 00 40 00

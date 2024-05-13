@@ -32,10 +32,10 @@ data class RegionSegment(private val bytes: ByteArray) {
 
     /** Generated image from [imageBytes]. */
     public val image: BufferedImage = DataInputStream(imageBytes.inputStream()).let { dis ->
-        val out = BufferedImage(IMAGE_SIZE, IMAGE_SIZE, BufferedImage.TYPE_INT_RGB)
+        val out = BufferedImage(SEGMENT_IMAGE_SIZE, SEGMENT_IMAGE_SIZE, BufferedImage.TYPE_INT_RGB)
         try {
-            for (y in 0 until IMAGE_SIZE) {
-                for (x in 0 until IMAGE_SIZE) {
+            for (y in 0 until SEGMENT_IMAGE_SIZE) {
+                for (x in 0 until SEGMENT_IMAGE_SIZE) {
                     val color: Int = dis.readInt()
                     out.setRGB(x, y, color)
                 }
@@ -47,8 +47,8 @@ data class RegionSegment(private val bytes: ByteArray) {
     }
 
     companion object {
-        const val IMAGE_SIZE: Int = 64
-        const val IMAGE_LENGTH: Int = IMAGE_SIZE * IMAGE_SIZE * 4
+        const val SEGMENT_IMAGE_SIZE: Int = 64
+        const val IMAGE_LENGTH: Int = SEGMENT_IMAGE_SIZE * SEGMENT_IMAGE_SIZE * 4
         const val HEADER_LENGTH: Int = 10
         val HEADER_IDENTIFIER = byteArrayOf(0x00, 0x00, 0x00, -128, 0x58, 0x00, 0x00, 0x40, 0x00)
     }

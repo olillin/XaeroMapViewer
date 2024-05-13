@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalPathApi::class)
+
 package com.olillin.xaeromapviewer
 
 import javafx.application.Application
@@ -17,9 +19,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import javax.imageio.ImageIO
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
-import kotlin.io.path.notExists
+import kotlin.io.path.*
 
 
 class App : Application() {
@@ -42,9 +42,9 @@ class App : Application() {
         }
     }
 
-    private val generateButton = Button("Generate").apply {
+    private val generateSectionButton = Button("Generate segment").apply {
         setOnAction {
-            refreshImage()
+            regenerateSegmentImage()
         }
     }
 
@@ -70,8 +70,22 @@ class App : Application() {
         }
     }
 
+    private val generateFolderButton = Button("Generate folder").apply {
+        setOnAction {
+            val selectedFolder = Path.of(selectedFileTextField.text)
+            generateFolder(selectedFolder)
+        }
+    }
+
     private var image: BufferedImage? = null
-    private val displayImage = ImageView().apply {
+    private var displayImage: BufferedImage?
+        get() = image
+        set(value) {
+            image = value
+            imageDisplay.image = scaleImage(value!!, imageDisplay.boundsInParent.width / image!!.width).toFX()
+        }
+
+    private val imageDisplay = ImageView().apply {
         fitWidth = 512.0
         isSmooth = false
         isPreserveRatio = true
@@ -81,83 +95,39 @@ class App : Application() {
         stage.title = "XaeroMapViewer"
 
         val layout = VBox().apply {
+            spacing = 4.0
             children.addAll(
                 HBox().apply {
+                    spacing = 4.0
                     children.addAll(
                         selectedFileLabel,
                         selectedFileTextField,
                     )
                 },
                 HBox().apply {
+                    spacing = 4.0
                     children.addAll(
                         selectedSegmentLabel,
                         previousSegmentButton,
                         selectedSegmentTextField,
                         nextSegmentButton,
+                        generateSectionButton,
                     )
                 },
                 HBox().apply {
+                    spacing = 4.0
                     children.addAll(
-                        generateButton,
-                        saveButton,
                         generateAllButton,
                         generateFullButton,
+                        generateFolderButton,
                     )
                 },
-                displayImage,
+                imageDisplay,
+                saveButton,
             )
         }
         stage.scene = Scene(layout, 550.0, 700.0)
         stage.show()
-    }
-
-    private fun refreshImage() {
-        val selectedFile = Path.of(selectedFileTextField.text)
-        val selectedSegment = selectedSegmentTextField.text.toInt()
-
-        val file = selectedFile.toFile()
-        val reader = FileRegionReader(file)
-        val segments = reader.getSegments()
-
-        if (selectedSegment >= segments.size) {
-            changeSelectedSegment(segments.size - selectedSegment - 1)
-            return
-        }
-
-        image = segments[selectedSegment].image
-
-        displayImage.image = scaleImage(image!!, 512.0 / image!!.width).toFX()
-    }
-
-    private fun scaleImage(img: BufferedImage, scaleFactor: Double): java.awt.Image = img.getScaledInstance(
-        (img.width * scaleFactor).toInt(), (img.height * scaleFactor).toInt(), java.awt.Image.SCALE_DEFAULT
-    )
-
-    private fun saveImage(image: BufferedImage, outputDir: Path) {
-        if (!outputDir.exists()) outputDir.createDirectories()
-        val index: Int = (0..256).first {
-            outputDir.resolve("$it.png").notExists()
-        }
-        val outputFile: File = outputDir.resolve("$index.png").toFile()
-        ImageIO.write(image, "png", outputFile)
-        println("Saved to ${outputFile.path}")
-    }
-
-    private fun generateAll(filePath: Path) {
-        val selectedFile = filePath.toFile()
-        val reader = FileRegionReader(selectedFile)
-        val segments = reader.getSegments()
-        segments.forEach { segment ->
-            saveImage(segment.image, Path.of("out/all"))
-        }
-    }
-
-    private fun generateFull(filePath: Path) {
-        val selectedFile = filePath.toFile()
-        val reader = FileRegionReader(selectedFile)
-        image = reader.getFullImage()
-
-        displayImage.image = scaleImage(image!!, 512.0 / image!!.width).toFX()
     }
 
     private fun changeSelectedSegment(by: Int, refresh: Boolean = true) {
@@ -170,8 +140,77 @@ class App : Application() {
         selectedSegmentTextField.text = newSegment.toString()
 
         if (refresh) {
-            refreshImage()
+            regenerateSegmentImage()
         }
+    }
+
+    private fun regenerateSegmentImage() {
+        val selectedFile = Path.of(selectedFileTextField.text)
+        val selectedSegment = selectedSegmentTextField.text.toInt()
+
+        val file = selectedFile.toFile()
+        val reader = FileRegionReader(file)
+        val segments = reader.segments
+
+        if (selectedSegment >= segments.size) {
+            changeSelectedSegment(segments.size - selectedSegment - 1)
+            return
+        }
+
+        displayImage = segments[selectedSegment].image
+    }
+
+    private fun scaleImage(img: BufferedImage, scaleFactor: Double): java.awt.Image = img.getScaledInstance(
+        (img.width * scaleFactor).toInt(), (img.height * scaleFactor).toInt(), java.awt.Image.SCALE_DEFAULT
+    )
+
+    private fun saveImage(image: BufferedImage, outputDir: Path, fileName: String? = null) {
+        if (!outputDir.exists()) outputDir.createDirectories()
+
+        val outputPath: Path = if (fileName != null) {
+            outputDir.resolve(fileName)
+        } else {
+            val index: Int = (0..256).first {
+                outputDir.resolve("$it.png").notExists()
+            }
+            outputDir.resolve("$index.png")
+        }
+        val outputFile: File = outputPath.toFile()
+        ImageIO.write(image, "png", outputFile)
+        println("Saved to ${outputFile.path}")
+    }
+
+    private fun generateAll(filePath: Path) {
+        val selectedFile = filePath.toFile()
+        val reader = FileRegionReader(selectedFile)
+        val segments = reader.segments
+
+        val outputDir: Path = Path.of("out/all")
+        if (outputDir.exists()) {
+            outputDir.listDirectoryEntries().forEach {
+                it.deleteIfExists()
+            }
+        }
+        segments.forEach { segment ->
+            saveImage(segment.image, outputDir, "${segment.x}_${segment.y}.png")
+        }
+    }
+
+    private fun generateFull(filePath: Path) {
+        val selectedFile = filePath.toFile()
+        val reader = FileRegionReader(selectedFile)
+
+        displayImage = reader.fullImage
+    }
+
+    private fun generateFolder(folderPath: Path) {
+        if (!folderPath.isDirectory()) {
+            println("Selected folder is not a directory")
+            return
+        }
+
+        val folderRegionReader = FolderRegionsReader(folderPath)
+        displayImage = folderRegionReader.fullImage
     }
 }
 

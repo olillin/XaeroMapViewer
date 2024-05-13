@@ -9,61 +9,62 @@ import java.util.zip.ZipFile
 
 /** Read data from a `.xaero` [file] */
 class FileRegionReader(private val file: File) : RegionReader {
-    override fun getSegments(): List<RegionSegment> {
-        val segments: MutableList<RegionSegment> = mutableListOf()
-        val fc = getUnzipped(file).inputStream().channel
+    constructor(region: FileRegion) : this(region.file)
 
-        // Skip to first segment
-        readUntilNextSegment(fc)
+    override val segments: List<RegionSegment>
+        get() {
+            val out: MutableList<RegionSegment> = mutableListOf()
+            val fc = getUnzipped(file).inputStream().channel
 
-        var done = false
-        while (!done) {
-            val segmentFile = File.createTempFile("xwmv", ".segment")
-            val segmentBuffer = segmentFile.outputStream()
+            // Skip to first segment
+            readUntilNextSegment(fc)
 
-            // Read segment data
-            try {
-                readUntilNextSegment(fc, segmentBuffer)
-            } catch (_: EOFException) {
-                done = true
+            var done = false
+            while (!done) {
+                val segmentFile = File.createTempFile("xwmv", ".segment")
+                val segmentBuffer = segmentFile.outputStream()
+
+                // Read segment data
+                try {
+                    readUntilNextSegment(fc, segmentBuffer)
+                } catch (_: EOFException) {
+                    done = true
+                }
+
+                // Create segment
+                segmentBuffer.flush()
+                val fis = segmentFile.inputStream()
+                val segment = RegionSegment(fis.readAllBytes())
+                fis.close()
+                out.add(segment)
+            }
+            fc.close()
+
+            return out
+        }
+
+    override val fullImage: BufferedImage
+        get() {
+            val imageWidth = Region.SEGMENTS_ACROSS_REGION * RegionSegment.SEGMENT_IMAGE_SIZE
+            val out = BufferedImage(imageWidth, imageWidth, BufferedImage.TYPE_INT_ARGB)
+            val graphics = out.graphics
+            graphics.color = Color.BLACK
+            graphics.fillRect(0, 0, out.width, out.height)
+
+            val segments = segments
+            segments.forEach { segment ->
+                graphics.drawImage(
+                    segment.image,
+                    segment.x * RegionSegment.SEGMENT_IMAGE_SIZE,
+                    segment.y * RegionSegment.SEGMENT_IMAGE_SIZE,
+                    null,
+                )
             }
 
-            // Create segment
-            segmentBuffer.flush()
-            val fis = segmentFile.inputStream()
-            val segment = RegionSegment(fis.readAllBytes())
-            fis.close()
-            segments.add(segment)
+            return out
         }
-        fc.close()
-
-        return segments
-    }
-
-    override fun getFullImage(): BufferedImage {
-        val imageWidth = SEGMENTS_ACROSS_REGION * RegionSegment.IMAGE_SIZE
-        val out = BufferedImage(imageWidth, imageWidth, BufferedImage.TYPE_INT_ARGB)
-        val graphics = out.graphics
-        graphics.color = Color.BLACK
-        graphics.fillRect(0, 0, out.width, out.height)
-
-        val segments = getSegments()
-        segments.forEach { segment ->
-            println("x: ${segment.x}, y: ${segment.y}")
-            graphics.drawImage(
-                segment.image,
-                segment.x * RegionSegment.IMAGE_SIZE,
-                segment.y * RegionSegment.IMAGE_SIZE,
-                null,
-            )
-        }
-
-        return out
-    }
 
     companion object {
-        const val SEGMENTS_ACROSS_REGION: Int = 16
-
         /**
          * Progress [fileChannel] to the beginning of the next segment.
          * Read bytes are written to [outputStream].
