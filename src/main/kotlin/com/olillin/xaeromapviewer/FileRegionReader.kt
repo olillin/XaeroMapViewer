@@ -43,6 +43,21 @@ class FileRegionReader(private val file: File) : RegionReader {
             return out
         }
 
+    val segmentPositions: List<Long>
+        get() {
+            val out: MutableList<Long> = mutableListOf()
+            val fc = getUnzipped(file).inputStream().channel
+
+            try {
+                while (true) {
+                    readUntilNextSegment(fc)
+                    out.add(fc.position())
+                }
+            } catch (_: EOFException) {
+                return out
+            }
+        }
+
     override val fullImage: BufferedImage
         get() {
             val imageWidth = Region.SEGMENTS_ACROSS_REGION * RegionSegment.SEGMENT_IMAGE_SIZE

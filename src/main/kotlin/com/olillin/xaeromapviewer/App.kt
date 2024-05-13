@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalPathApi::class)
-
 package com.olillin.xaeromapviewer
 
 import javafx.application.Application
@@ -48,14 +46,6 @@ class App : Application() {
         }
     }
 
-    private val saveButton = Button("Save image").apply {
-        setOnAction {
-            if (image != null) {
-                saveImage(image!!, Path.of("out"))
-            }
-        }
-    }
-
     private val generateAllButton = Button("Generate all").apply {
         setOnAction {
             val selectedFile = Path.of(selectedFileTextField.text)
@@ -74,6 +64,21 @@ class App : Application() {
         setOnAction {
             val selectedFolder = Path.of(selectedFileTextField.text)
             generateFolder(selectedFolder)
+        }
+    }
+
+    private val saveSegmentPositionsButton = Button("Save segment positions").apply {
+        setOnAction {
+            val selectedFile = Path.of(selectedFileTextField.text)
+            saveSegmentPositions(selectedFile)
+        }
+    }
+
+    private val saveButton = Button("Save image").apply {
+        setOnAction {
+            if (image != null) {
+                saveImage(image!!, Path.of("out"))
+            }
         }
     }
 
@@ -120,6 +125,7 @@ class App : Application() {
                         generateAllButton,
                         generateFullButton,
                         generateFolderButton,
+                        saveSegmentPositionsButton,
                     )
                 },
                 imageDisplay,
@@ -170,14 +176,26 @@ class App : Application() {
         val outputPath: Path = if (fileName != null) {
             outputDir.resolve(fileName)
         } else {
-            val index: Int = (0..256).first {
-                outputDir.resolve("$it.png").notExists()
-            }
-            outputDir.resolve("$index.png")
+            findAvailableName(outputDir, ".png")
         }
         val outputFile: File = outputPath.toFile()
         ImageIO.write(image, "png", outputFile)
         println("Saved to ${outputFile.path}")
+    }
+
+    /**
+     * Find an available file name in [outputDir] with an [extension] that includes the period (.)
+     *
+     * @throws NoSuchElementException if no file name could be found.
+     */
+    private fun findAvailableName(outputDir: Path, extension: String = ""): Path {
+        for (index in 0..10000) {
+            val path = outputDir.resolve("$index$extension")
+            if (path.notExists()) {
+                return path
+            }
+        }
+        throw NoSuchElementException("Unable to find available name.")
     }
 
     private fun generateAll(filePath: Path) {
@@ -211,6 +229,24 @@ class App : Application() {
 
         val folderRegionReader = FolderRegionsReader(folderPath)
         displayImage = folderRegionReader.fullImage
+    }
+
+    private fun saveSegmentPositions(filePath: Path) {
+        val reader = FileRegionReader(filePath.toFile())
+        val segmentPositions: List<Long> = reader.segmentPositions
+        println(segmentPositions)
+        val content = segmentPositions.joinToString("\n") { it.toString() }
+
+        val outFilePath = findAvailableName(Path("out"), ".txt")
+        if (outFilePath.parent.notExists()) {
+            outFilePath.parent.createDirectories()
+        }
+        val outFile = outFilePath.toFile()
+        outFile.writer().use {
+            it.write(content)
+        }
+
+        println("Saved positions to $outFilePath")
     }
 }
 
